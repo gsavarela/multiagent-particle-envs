@@ -2,6 +2,25 @@ import numpy as np
 from mpe.core import World, Agent, Landmark
 from mpe.scenario import BaseScenario
 
+def l2norm(x):
+    return np.linalg.norm(x, 2)
+
+def closest(pos):
+    """Closest position by L2-Norm
+    
+    Parameter
+    ---------
+    pos: list<np.ndarray>
+        A list of relative positions
+
+    Returns:
+    -------
+    id: int
+        The element in postition with the smallest relative position
+    """
+    return np.argmin([*map(lambda x: l2norm(x), pos)])
+
+
 
 class Scenario(BaseScenario):
     def make_world(self):
@@ -12,6 +31,7 @@ class Scenario(BaseScenario):
         num_adversaries = 3
         num_agents = num_adversaries + num_good_agents
         num_landmarks = 2
+        world.partially_observable = True
         # add agents
         world.agents = [Agent() for i in range(num_agents)]
         for i, agent in enumerate(world.agents):
@@ -121,11 +141,18 @@ class Scenario(BaseScenario):
         if shape:  # reward can optionally be shaped (decreased reward for increased distance from agents)
             for adv in adversaries:
                 rew -= 0.1 * min([np.sqrt(np.sum(np.square(a.state.p_pos - adv.state.p_pos))) for a in agents])
+
         if agent.collide:
-            for ag in agents:
-                for adv in adversaries:
-                    if self.is_collision(ag, adv):
+            if world.partially_observable:
+                # POMDP: individual reward
+                for ag in agents:
+                    if self.is_collision(agent, ag):
                         rew += 10
+            else:
+                for ag in agents:
+                    for adv in adversaries:
+                        if self.is_collision(ag, adv):
+                            rew += 10
         return rew
 
     def observation(self, agent, world):
@@ -134,14 +161,32 @@ class Scenario(BaseScenario):
         for entity in world.landmarks:
             if not entity.boundary:
                 entity_pos.append(entity.state.p_pos - agent.state.p_pos)
-        # communication of all other agents
+
         comm = []
         other_pos = []
         other_vel = []
+
         for other in world.agents:
             if other is agent: continue
-            comm.append(other.state.c)
             other_pos.append(other.state.p_pos - agent.state.p_pos)
-            if not other.adversary:
+            if other.adversary:
+                comm.append(other.state.c)
+            else:
                 other_vel.append(other.state.p_vel)
+
+
+        # (POMDP) Only see closest peer and landmark 
+        if world.partially_observable and agent.adversary:
+            num_peers = len(self.adversaries(world)) - 1
+            closest_entity_id = closest(entity_pos)
+            entity_pos = [entity_pos[closest_entity_id]]
+
+            other_pos_peers = other_pos[:num_peers]
+            other_pos_targets = other_pos[num_peers:]
+            closest_peer_id = closest(other_pos_peers)
+            closest_target_id = closest(other_pos_targets)
+            other_pos = [other_pos_peers[closest_peer_id]] + [other_pos_targets[closest_target_id]]
+            other_vel = [other_vel[closest_target_id]]
+            comm = [comm[closest_peer_id]]
+
         return np.concatenate([agent.state.p_vel] + [agent.state.p_pos] + entity_pos + other_pos + other_vel)
