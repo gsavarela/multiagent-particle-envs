@@ -3,6 +3,21 @@ from mpe.core import World, Agent, Landmark
 from mpe.scenario import BaseScenario
 
 
+def closest(pos):
+    """Closest position by L2-Norm
+    
+    Parameter
+    ---------
+    pos: list<np.ndarray>
+        A list of relative positions
+
+    Returns:
+    -------
+    id: int
+        The element in postition with the smallest relative position
+    """
+    return np.argmin([*map(lambda x: np.linalg.norm(x, 2), pos)])
+
 class Scenario(BaseScenario):
     def make_world(self):
         world = World()
@@ -10,7 +25,8 @@ class Scenario(BaseScenario):
         world.dim_c = 2
         num_agents = 3
         num_landmarks = 3
-        world.collaborative = True
+        # world.collaborative = True
+        world.partially_observable = True
         # add agents
         world.agents = [Agent() for i in range(num_agents)]
         for i, agent in enumerate(world.agents):
@@ -70,11 +86,17 @@ class Scenario(BaseScenario):
         return True if dist < dist_min else False
 
     def reward(self, agent, world):
-        # Agents are rewarded based on minimum agent distance to each landmark, penalized for collisions
+        # (collaborative) Agents are rewarded based on minimum agent distance to each landmark, penalized for collisions
+        # (not collaborative) Agent is rewarded based on its distance to the closest landmark, penalized for collisions
         rew = 0
-        for l in world.landmarks:
-            dists = [np.sqrt(np.sum(np.square(a.state.p_pos - l.state.p_pos))) for a in world.agents]
+        if world.partially_observable:
+            dists = [np.sqrt(np.sum(np.square(agent.state.p_pos - l.state.p_pos))) for l in world.landmarks]
             rew -= min(dists)
+        else:
+            for l in world.landmarks:
+                dists = [np.sqrt(np.sum(np.square(a.state.p_pos - l.state.p_pos))) for a in world.agents]
+                rew -= min(dists)
+
         if agent.collide:
             for a in world.agents:
                 if self.is_collision(a, agent):
@@ -97,4 +119,13 @@ class Scenario(BaseScenario):
             if other is agent: continue
             comm.append(other.state.c)
             other_pos.append(other.state.p_pos - agent.state.p_pos)
+
+        # (POMDP) Only see closest peer and landmark 
+        if world.partially_observable:
+            closest_entity_id = closest(entity_pos)
+            closest_other_id = closest(other_pos)
+
+            entity_pos = [entity_pos[closest_entity_id]]
+            other_pos = [other_pos[closest_other_id]]
+            comm = [comm[closest_other_id]]
         return np.concatenate([agent.state.p_vel] + [agent.state.p_pos] + entity_pos + other_pos + comm)
