@@ -31,6 +31,7 @@ class Scenario(BaseScenario):
         num_adversaries = 3
         num_agents = num_adversaries + num_good_agents
         num_landmarks = 2
+        world.collaborative = True
         world.partially_observable = True
         # add agents
         world.agents = [Agent() for i in range(num_agents)]
@@ -143,16 +144,16 @@ class Scenario(BaseScenario):
                 rew -= 0.1 * min([np.sqrt(np.sum(np.square(a.state.p_pos - adv.state.p_pos))) for a in agents])
 
         if agent.collide:
-            if world.partially_observable:
-                # POMDP: individual reward
-                for ag in agents:
-                    if self.is_collision(agent, ag):
-                        rew += 10
-            else:
+            if world.collaborative:
                 for ag in agents:
                     for adv in adversaries:
                         if self.is_collision(ag, adv):
                             rew += 10
+            else:
+                # POMDP: individual reward
+                for ag in agents:
+                    if self.is_collision(agent, ag):
+                        rew += 10
         return rew
 
     def observation(self, agent, world):

@@ -25,7 +25,7 @@ class Scenario(BaseScenario):
         world.dim_c = 2
         num_agents = 3
         num_landmarks = 3
-        # world.collaborative = True
+        world.collaborative = True
         world.partially_observable = True
         # add agents
         world.agents = [Agent() for i in range(num_agents)]
@@ -89,7 +89,11 @@ class Scenario(BaseScenario):
         # (collaborative) Agents are rewarded based on minimum agent distance to each landmark, penalized for collisions
         # (not collaborative) Agent is rewarded based on its distance to the closest landmark, penalized for collisions
         rew = 0
-        if world.partially_observable:
+        if world.collaborative:
+            for l in world.landmarks:
+                dists = [np.sqrt(np.sum(np.square(a.state.p_pos - l.state.p_pos))) for a in world.agents]
+                rew -= min(dists)
+        elif world.partially_observable:
             dists = [np.sqrt(np.sum(np.square(agent.state.p_pos - l.state.p_pos))) for l in world.landmarks]
             rew -= min(dists)
         else:
