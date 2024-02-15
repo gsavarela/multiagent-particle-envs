@@ -33,7 +33,7 @@ class MultiAgentEnv(gym.Env):
         self.discrete_action_input = False
         # if true, even the action is continuous, action will be performed discretely
         self.force_discrete_action = world.discrete_action if hasattr(world, 'discrete_action') else False
-        # if true, every agent has the same reward
+        # Warning do not turn this on for simple_tag
         self.shared_reward = world.collaborative if hasattr(world, 'collaborative') else False
         self.time = 0
 
@@ -112,8 +112,6 @@ class MultiAgentEnv(gym.Env):
             done_n.append(self._get_done(agent))
 
             info_n['n'].append(self._get_info(agent))
-
-        # adversarial or POMDP
         # all agents get total reward in cooperative case
         if self.shared_reward:
             reward = np.sum(reward_n)

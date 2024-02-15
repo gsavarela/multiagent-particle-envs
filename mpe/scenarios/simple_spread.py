@@ -86,20 +86,16 @@ class Scenario(BaseScenario):
         return True if dist < dist_min else False
 
     def reward(self, agent, world):
-        # (collaborative) Agents are rewarded based on minimum agent distance to each landmark, penalized for collisions
+        # (collaborative) Agents are rewarded based on minimum agents distance to each landmark, penalized for collisions
         # (not collaborative) Agent is rewarded based on its distance to the closest landmark, penalized for collisions
         rew = 0
         if world.collaborative:
             for l in world.landmarks:
                 dists = [np.sqrt(np.sum(np.square(a.state.p_pos - l.state.p_pos))) for a in world.agents]
                 rew -= min(dists)
-        elif world.partially_observable:
+        else:
             dists = [np.sqrt(np.sum(np.square(agent.state.p_pos - l.state.p_pos))) for l in world.landmarks]
             rew -= min(dists)
-        else:
-            for l in world.landmarks:
-                dists = [np.sqrt(np.sum(np.square(a.state.p_pos - l.state.p_pos))) for a in world.agents]
-                rew -= min(dists)
 
         if agent.collide:
             for a in world.agents:
