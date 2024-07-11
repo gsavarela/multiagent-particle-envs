@@ -1,11 +1,12 @@
 from gym.envs.registration import register
 import mpe.scenarios as scenarios
+
 # Multiagent envs
 # ----------------------------------------
 
 _particles = {
     "multi_speaker_listener": "MultiSpeakerListener-v0",
-    "simple_adversary": "SimpleAdversary-v0",
+    "simple_adversary": "SimpleAdversary-v1",
     "simple_crypto": "SimpleCrypto-v0",
     "simple_push": "SimplePush-v0",
     "simple_reference": "SimpleReference-v0",
